@@ -580,13 +580,16 @@ class BatchedInferencePipeline:
         pbar = tqdm(total=len(features), disable=not log_progress, position=0)
         seg_idx = 0
         for i in range(0, len(features), batch_size):
+            batch_feats = features[i : i + batch_size]
+            batch_meta = chunks_metadata[i : i + batch_size]
+    
             results = self.forward(
-                features[i : i + batch_size],
+                batch_feats,
                 tokenizer,
-                chunks_metadata[i : i + batch_size],
+                batch_meta,
                 options,
             )
-
+    
             for result in results:
                 for segment in result:
                     seg_idx += 1
@@ -607,9 +610,9 @@ class BatchedInferencePipeline:
                         compression_ratio=segment["compression_ratio"],
                         temperature=options.temperatures[0],
                     )
-
-                pbar.update(1)
-
+    
+            pbar.update(len(batch_feats))
+    
         pbar.close()
         self.last_speech_timestamp = 0.0
 
