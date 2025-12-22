@@ -522,6 +522,8 @@ class BatchedInferencePipeline:
             log_prob_threshold=log_prob_threshold,
             no_speech_threshold=no_speech_threshold,
             compression_ratio_threshold=compression_ratio_threshold,
+            condition_on_previous_text=condition_on_previous_text,
+            prompt_reset_on_temperature=prompt_reset_on_temperature,
             temperatures=(
                 temperature[:1]
                 if isinstance(temperature, (list, tuple))
@@ -535,18 +537,16 @@ class BatchedInferencePipeline:
                 if suppress_tokens
                 else suppress_tokens
             ),
+            without_timestamps=without_timestamps,
+            max_initial_timestamp=max_initial_timestamp,
+            word_timestamps=word_timestamps,
             prepend_punctuations=prepend_punctuations,
             append_punctuations=append_punctuations,
-            max_new_tokens=max_new_tokens,
-            hotwords=hotwords,
-            word_timestamps=word_timestamps,
-            hallucination_silence_threshold=None,
-            condition_on_previous_text=False,
-            clip_timestamps=clip_timestamps,
-            prompt_reset_on_temperature=0.5,
             multilingual=multilingual,
-            without_timestamps=without_timestamps,
-            max_initial_timestamp=0.0,
+            max_new_tokens=max_new_tokens,
+            clip_timestamps=clip_timestamps,
+            hallucination_silence_threshold=hallucination_silence_threshold,
+            hotwords=hotwords,
         )
 
         info = TranscriptionInfo(
