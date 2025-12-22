@@ -1575,7 +1575,7 @@ class WhisperModel:
         last_speech_timestamp: float,
     ) -> float:
         if len(segments) == 0:
-            return
+            return last_speech_timestamp
 
         text_tokens = []
         text_tokens_per_segment = []
