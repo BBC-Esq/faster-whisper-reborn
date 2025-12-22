@@ -7,7 +7,7 @@ import zlib
 from dataclasses import asdict, dataclass
 from inspect import signature
 from math import ceil
-from typing import BinaryIO, Iterable, List, Optional, Tuple, Union
+from typing import BinaryIO, Iterable, List, Optional, Tuple, Union, Sequence
 from warnings import warn
 
 import ctranslate2
@@ -1883,17 +1883,18 @@ def get_compression_ratio(text: str) -> float:
 
 def get_suppressed_tokens(
     tokenizer: Tokenizer,
-    suppress_tokens: Tuple[int],
-) -> Optional[List[int]]:
-    if -1 in suppress_tokens:
-        suppress_tokens = [t for t in suppress_tokens if t >= 0]
-        suppress_tokens.extend(tokenizer.non_speech_tokens)
-    elif suppress_tokens is None or len(suppress_tokens) == 0:
-        suppress_tokens = []  # interpret empty string as an empty list
+    suppress_tokens: Optional[Sequence[int]],
+) -> List[int]:
+    if suppress_tokens is None:
+        tokens: List[int] = []
     else:
-        assert isinstance(suppress_tokens, list), "suppress_tokens must be a list"
+        tokens = list(suppress_tokens)
 
-    suppress_tokens.extend(
+    if -1 in tokens:
+        tokens = [t for t in tokens if t >= 0]
+        tokens.extend(tokenizer.non_speech_tokens)
+
+    tokens.extend(
         [
             tokenizer.transcribe,
             tokenizer.translate,
@@ -1904,7 +1905,7 @@ def get_suppressed_tokens(
         ]
     )
 
-    return tuple(sorted(set(suppress_tokens)))
+    return sorted(set(tokens))
 
 
 def merge_punctuations(alignment: List[dict], prepended: str, appended: str) -> None:
