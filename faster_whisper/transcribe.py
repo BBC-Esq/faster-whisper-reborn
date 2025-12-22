@@ -105,7 +105,7 @@ class TranscriptionInfo:
     duration_after_vad: float
     all_language_probs: Optional[List[Tuple[str, float]]]
     transcription_options: TranscriptionOptions
-    vad_options: VadOptions
+    vad_options: Optional[VadOptions]
 
 
 class BatchedInferencePipeline:
