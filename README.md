@@ -6,54 +6,6 @@
 
 This implementation is up to 4 times faster than [openai/whisper](https://github.com/openai/whisper) for the same accuracy while using less memory. The efficiency can be further improved with 8-bit quantization on both CPU and GPU.
 
-## Benchmark
-
-### Whisper
-
-For reference, here's the time and memory usage that are required to transcribe [**13 minutes**](https://www.youtube.com/watch?v=0u7tTptBo9I) of audio using different implementations:
-
-* [openai/whisper](https://github.com/openai/whisper)@[v20240930](https://github.com/openai/whisper/tree/v20240930)
-* [whisper.cpp](https://github.com/ggerganov/whisper.cpp)@[v1.7.2](https://github.com/ggerganov/whisper.cpp/tree/v1.7.2)
-* [transformers](https://github.com/huggingface/transformers)@[v4.46.3](https://github.com/huggingface/transformers/tree/v4.46.3)
-* [faster-whisper](https://github.com/SYSTRAN/faster-whisper)@[v1.1.0](https://github.com/SYSTRAN/faster-whisper/tree/v1.1.0)
-
-### Large-v2 model on GPU
-
-| Implementation | Precision | Beam size | Time | VRAM Usage |
-| --- | --- | --- | --- | --- |
-| openai/whisper | fp16 | 5 | 2m23s | 4708MB |
-| whisper.cpp (Flash Attention) | fp16 | 5 | 1m05s | 4127MB |
-| transformers (SDPA)[^1] | fp16 | 5 | 1m52s | 4960MB |
-| faster-whisper | fp16 | 5 | 1m03s | 4525MB |
-| faster-whisper (`batch_size=8`) | fp16 | 5 | 17s | 6090MB |
-| faster-whisper | int8 | 5 | 59s | 2926MB |
-| faster-whisper (`batch_size=8`) | int8 | 5 | 16s | 4500MB |
-
-### distil-whisper-large-v3 model on GPU
-
-| Implementation | Precision | Beam size | Time | YT Commons WER |
-| --- | --- | --- | --- | --- |
-| transformers (SDPA) (`batch_size=16`) | fp16 | 5 | 46m12s | 14.801 |
-| faster-whisper (`batch_size=16`) | fp16 | 5 | 25m50s | 13.527 |
-
-*GPU Benchmarks are Executed with CUDA 12.4 on a NVIDIA RTX 3070 Ti 8GB.*
-[^1]: transformers OOM for any batch size > 1
-
-### Small model on CPU
-
-| Implementation | Precision | Beam size | Time | RAM Usage |
-| --- | --- | --- | --- | --- |
-| openai/whisper | fp32 | 5 | 6m58s | 2335MB |
-| whisper.cpp | fp32 | 5 | 2m05s | 1049MB |
-| whisper.cpp (OpenVINO) | fp32 | 5 | 1m45s | 1642MB |
-| faster-whisper | fp32 | 5 | 2m37s | 2257MB |
-| faster-whisper (`batch_size=8`) | fp32 | 5 | 1m06s | 4230MB |
-| faster-whisper | int8 | 5 | 1m42s | 1477MB |
-| faster-whisper (`batch_size=8`) | int8 | 5 | 51s | 3608MB |
-
-*Executed with 8 threads on an Intel Core i7-12700K.*
-
-
 ## Requirements
 
 * Python 3.9 or greater
