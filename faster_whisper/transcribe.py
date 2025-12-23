@@ -7,7 +7,7 @@ import zlib
 from dataclasses import asdict, dataclass
 from inspect import signature
 from math import ceil
-from typing import BinaryIO, Iterable, List, Optional, Tuple, Union
+from typing import BinaryIO, Iterable, List, Optional, Tuple, Union, Sequence
 from warnings import warn
 
 import ctranslate2
@@ -105,7 +105,7 @@ class TranscriptionInfo:
     duration_after_vad: float
     all_language_probs: Optional[List[Tuple[str, float]]]
     transcription_options: TranscriptionOptions
-    vad_options: VadOptions
+    vad_options: Optional[VadOptions]
 
 
 class BatchedInferencePipeline:
@@ -401,12 +401,9 @@ class BatchedInferencePipeline:
                         min_silence_duration_ms=160,
                     )
                 elif isinstance(vad_parameters, dict):
-                    if "max_speech_duration_s" in vad_parameters.keys():
-                        vad_parameters.pop("max_speech_duration_s")
-
-                    vad_parameters = VadOptions(
-                        **vad_parameters, max_speech_duration_s=chunk_length
-                    )
+                    vad_dict = vad_parameters.copy()  # avoid mutating caller input
+                    vad_dict.pop("max_speech_duration_s", None)
+                    vad_parameters = VadOptions(**vad_dict, max_speech_duration_s=chunk_length)
 
                 clip_timestamps = get_speech_timestamps(audio, vad_parameters)
             # run the audio if it is less than 30 sec even without clip_timestamps
@@ -525,6 +522,8 @@ class BatchedInferencePipeline:
             log_prob_threshold=log_prob_threshold,
             no_speech_threshold=no_speech_threshold,
             compression_ratio_threshold=compression_ratio_threshold,
+            condition_on_previous_text=condition_on_previous_text,
+            prompt_reset_on_temperature=prompt_reset_on_temperature,
             temperatures=(
                 temperature[:1]
                 if isinstance(temperature, (list, tuple))
@@ -538,18 +537,16 @@ class BatchedInferencePipeline:
                 if suppress_tokens
                 else suppress_tokens
             ),
+            without_timestamps=without_timestamps,
+            max_initial_timestamp=max_initial_timestamp,
+            word_timestamps=word_timestamps,
             prepend_punctuations=prepend_punctuations,
             append_punctuations=append_punctuations,
-            max_new_tokens=max_new_tokens,
-            hotwords=hotwords,
-            word_timestamps=word_timestamps,
-            hallucination_silence_threshold=None,
-            condition_on_previous_text=False,
-            clip_timestamps=clip_timestamps,
-            prompt_reset_on_temperature=0.5,
             multilingual=multilingual,
-            without_timestamps=without_timestamps,
-            max_initial_timestamp=0.0,
+            max_new_tokens=max_new_tokens,
+            clip_timestamps=clip_timestamps,
+            hallucination_silence_threshold=hallucination_silence_threshold,
+            hotwords=hotwords,
         )
 
         info = TranscriptionInfo(
@@ -583,10 +580,13 @@ class BatchedInferencePipeline:
         pbar = tqdm(total=len(features), disable=not log_progress, position=0)
         seg_idx = 0
         for i in range(0, len(features), batch_size):
+            batch_feats = features[i : i + batch_size]
+            batch_meta = chunks_metadata[i : i + batch_size]
+
             results = self.forward(
-                features[i : i + batch_size],
+                batch_feats,
                 tokenizer,
-                chunks_metadata[i : i + batch_size],
+                batch_meta,
                 options,
             )
 
@@ -611,7 +611,7 @@ class BatchedInferencePipeline:
                         temperature=options.temperatures[0],
                     )
 
-                pbar.update(1)
+            pbar.update(len(batch_feats))
 
         pbar.close()
         self.last_speech_timestamp = 0.0
@@ -1029,7 +1029,7 @@ class WhisperModel:
         segment_size: int,
         segment_duration: float,
         seek: int,
-    ) -> List[List[int]]:
+    ) -> Tuple[List[dict], int, bool]:
         current_segments = []
         single_timestamp_ending = (
             len(tokens) >= 2 and tokens[-2] < tokenizer.timestamp_begin <= tokens[-1]
@@ -1575,7 +1575,7 @@ class WhisperModel:
         last_speech_timestamp: float,
     ) -> float:
         if len(segments) == 0:
-            return
+            return last_speech_timestamp
 
         text_tokens = []
         text_tokens_per_segment = []
@@ -1883,17 +1883,18 @@ def get_compression_ratio(text: str) -> float:
 
 def get_suppressed_tokens(
     tokenizer: Tokenizer,
-    suppress_tokens: Tuple[int],
-) -> Optional[List[int]]:
-    if -1 in suppress_tokens:
-        suppress_tokens = [t for t in suppress_tokens if t >= 0]
-        suppress_tokens.extend(tokenizer.non_speech_tokens)
-    elif suppress_tokens is None or len(suppress_tokens) == 0:
-        suppress_tokens = []  # interpret empty string as an empty list
+    suppress_tokens: Optional[Sequence[int]],
+) -> List[int]:
+    if suppress_tokens is None:
+        tokens: List[int] = []
     else:
-        assert isinstance(suppress_tokens, list), "suppress_tokens must be a list"
+        tokens = list(suppress_tokens)
 
-    suppress_tokens.extend(
+    if -1 in tokens:
+        tokens = [t for t in tokens if t >= 0]
+        tokens.extend(tokenizer.non_speech_tokens)
+
+    tokens.extend(
         [
             tokenizer.transcribe,
             tokenizer.translate,
@@ -1904,7 +1905,7 @@ def get_suppressed_tokens(
         ]
     )
 
-    return tuple(sorted(set(suppress_tokens)))
+    return sorted(set(tokens))
 
 
 def merge_punctuations(alignment: List[dict], prepended: str, appended: str) -> None:
