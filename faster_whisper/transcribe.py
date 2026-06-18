@@ -186,7 +186,7 @@ class BatchedInferencePipeline:
         prompt = self.model.get_prompt(
             tokenizer,
             previous_tokens=(
-                tokenizer.encode(options.initial_prompt)
+                tokenizer.encode(" " + options.initial_prompt.strip())
                 if options.initial_prompt is not None
                 else []
             ),
