@@ -333,6 +333,9 @@ class SileroVADModel:
         assert audio.ndim == 1, "Input should be a 1D array"
         assert audio.shape[0] % num_samples == 0, "Input size should be a multiple of num_samples"
 
+        if audio.shape[0] == 0:
+            return np.empty(0, dtype=np.float32)
+
         h = np.zeros((1, 1, 128), dtype="float32")
         c = np.zeros((1, 1, 128), dtype="float32")
 
